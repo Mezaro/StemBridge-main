@@ -1,6 +1,6 @@
 import streamlit as st
 from ui import theme, logic
-from ui.common import TYPES, TOTALS, role_toggle, type_toggle
+from ui.common import TYPES, TOTALS, type_toggle
 
 
 def _stage_state():
@@ -44,8 +44,10 @@ def render():
     cur = max(0, min(total - 1, stages.get(key, 0)))
     stages[key] = cur
     stage = items[cur]
+    who = logic.first_name(sb)
 
-    theme.hero("My journey", f"{name} transplant • {total} phases", "TAP A PHASE TO EXPLORE")
+    theme.hero(f"{who}'s journey" if who else "My journey", f"{name} transplant, {total} phases. Take your time!",
+               "TAP A PHASE TO EXPLORE")
     type_toggle()
 
     visited = set(sb["visited"][key]); visited.add(cur)
@@ -66,10 +68,9 @@ def render():
     t_what, t_tests, t_ask, t_words, t_quiz = st.tabs(["📖 What", "🧪 Tests", "❓ Ask", "🔤 Words", "🎮 Quiz"])
     with t_what:
         st.markdown(stage["description"].strip())
-        theme.note("Caregiver tip: " + logic.COPY[sb["role"]]["tip"] if sb["role"] == "caregiver"
-                   else "Tip: " + logic.COPY[sb["role"]]["tip"])
+        theme.note(("Caregiver tip: " if sb["role"] == "caregiver" else "Tip: ") + logic.COPY[sb["role"]]["tip"])
     with t_tests:
-        st.caption("Tests and activities that may happen. Your team decides what applies to you.")
+        st.caption("These are tests and activities that may happen. Your team decides what applies to you.")
         for x in logic.parse_list(stage["tests"]):
             st.markdown(f"- {x}")
     with t_ask:
@@ -88,17 +89,17 @@ def render():
         if not quiz:
             st.info("No quiz for this phase.")
         else:
-            st.markdown(f"Which word matches this meaning?\n\n> {quiz['definition']}")
+            st.markdown(f"Let's try a quick one! Which word matches this meaning?\n\n> {quiz['definition']}")
             choice = st.radio("Pick one", quiz["options"], index=None, key=f"quiz_{qid}", label_visibility="collapsed")
             if st.button("Check my answer", key=f"chk_{qid}", use_container_width=True):
                 if choice is None:
-                    st.warning("Pick an answer first.")
+                    st.warning("Pick an answer first, then tap the button.")
                 elif choice == quiz["answer"]:
                     if qid not in sb["quiz"]:
                         sb["quiz"].append(qid)
-                    st.success("🎉 Correct! +10 sparks")
+                    st.success("🎉 Correct! Nicely done.")
                 else:
-                    st.info(f"Not quite. The answer is **{quiz['answer']}**. Check the Words tab and try another phase!")
+                    st.info(f"Good try! The answer is **{quiz['answer']}**. The Words tab can help next time.")
 
     p, d, n = st.columns([1, 2, 1], vertical_alignment="center")
     with p:
@@ -112,12 +113,11 @@ def render():
     with n:
         st.button("→", key="next", on_click=_move, args=(key, 1, total), disabled=cur == total - 1, use_container_width=True)
 
-    jd = st.session_state.pop("just_done", None)
-    if jd:
+    if st.session_state.pop("just_done", None):
         if len(set(sb["done"][key])) >= total:
             st.balloons()
             st.toast("You finished every phase! 🏁", icon="🎉")
         else:
-            st.toast("Phase complete! +15 sparks", icon="⚡")
-    theme.note("Urgent symptoms? Contact your transplant team using their emergency instructions, or call emergency "
-               "services. This guide cannot assess symptoms.")
+            st.toast("Phase complete! Great job.", icon="✅")
+    theme.note("Urgent symptoms? Please contact your transplant team using their emergency instructions, or call "
+               "emergency services. This guide cannot assess symptoms.")

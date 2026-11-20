@@ -1,5 +1,6 @@
 import streamlit as st
 from ui import theme, storage
+from views import landing
 
 CENTERS = [
     ("MD Anderson Cancer Center", "Houston", "TX", "https://www.mdanderson.org/"),
@@ -63,6 +64,7 @@ def _checklist(prefix, items):
         qid = f"{prefix}:{i}"
         wk = f"c_{qid}"
         st.session_state[wk] = qid in sb["checked"]
+
         def _cb(qid=qid, wk=wk):
             c = st.session_state.sb["checked"]
             if st.session_state[wk] and qid not in c:
@@ -73,10 +75,10 @@ def _checklist(prefix, items):
 
 
 def render():
-    theme.hero("More support", "Centers, second opinions, caregivers, money matters.", "TOOLS & GUIDES")
-    t1, t2, t3, t4, t5 = st.tabs(["🏥 Centers", "🩺 2nd opinion", "🤝 Caregivers", "💚 Money", "⚙️ About"])
+    theme.hero("More ways I can help", "Centers, second opinions, caregiver tips, and money questions.", "TOOLS & GUIDES")
+    t1, t2, t3, t4, t5 = st.tabs(["🏥 Centers", "🩺 2nd opinion", "🤝 Caregivers", "💚 Money", "⚙️ Me"])
     with t1:
-        theme.note("Illustrative list only: not complete, ranked, or verified. Confirm services and insurance with each center.")
+        theme.note("This is an illustrative list, not complete, ranked, or verified. Please confirm services and insurance with each center.")
         q = st.text_input("Search center, city, or state", placeholder="Dallas, Mayo, CA…").strip().casefold()
         hits = [c for c in CENTERS if q in " ".join(c[:3]).casefold()]
         st.caption(f"{len(hits)} centers")
@@ -85,18 +87,18 @@ def render():
                 st.markdown(f"**🏥 {name}**  \n📍 {city}, {state}")
                 st.link_button("Official website ↗", url, use_container_width=True)
         if not hits:
-            st.info("No match. Try an official directory below.")
+            st.info("No match yet. Try an official directory below.")
         st.link_button("NCI Cancer Centers ↗", "https://www.cancer.gov/research/infrastructure/cancer-centers/find", use_container_width=True)
         st.link_button("NMDP Patient Resources ↗", "https://www.nmdp.org/patients", use_container_width=True)
     with t2:
-        theme.note("StemBridge does not schedule appointments or send records. Do not delay urgent treatment without talking to your team.")
+        theme.note("StemBridge does not schedule appointments or send records. Please don't delay urgent treatment without talking to your team.")
         for i, (t, d) in enumerate(SECOND, 1):
             with st.expander(f"{i}. {t}", expanded=i == 1):
                 st.write(d)
         st.markdown("**Questions for the second specialist**")
         _checklist("second", SECOND_Q)
     with t3:
-        theme.note("Responsibilities vary. Follow the instructions of the patient's clinical team.")
+        theme.note("Responsibilities vary. Please follow the instructions of the patient's clinical team.")
         for i, (title, items) in enumerate(CARE.items()):
             with st.expander(title, expanded=i == 0):
                 _checklist(f"care{i}", items)
@@ -104,14 +106,18 @@ def render():
         theme.note("Assistance varies by diagnosis, insurance, location, and eligibility. StemBridge does not submit applications.")
         st.markdown("**Questions for a financial counselor**")
         _checklist("fin", FIN_Q)
-        st.caption("Find organizations in Support → Financial Help.")
+        st.caption("You can find organizations under Support, then Financial Help.")
     with t5:
-        st.markdown("**StemBridge** is a classroom educational prototype for SDG 3. It is not a medical device and does not "
+        sb = st.session_state.sb
+        n = sb["name"] or "friend"
+        st.markdown(f"**Hi, {n}!** 💙 You're using StemBridge as a **{sb['role']}**.")
+        st.button("✏️ Update my profile", use_container_width=True, on_click=landing._replay, key="me_edit")
+        st.markdown("**Add me to your phone:** open this site in Chrome or Safari, then choose *Add to Home Screen*.")
+        st.caption("Your nickname, progress, and badges are saved only in this browser. There are no accounts and no "
+                   "server database. Please don't enter personal health information.")
+        st.markdown("StemBridge is a classroom educational prototype for SDG 3. It is not a medical device and does not "
                     "replace professional care. Content needs clinical review before real patient use.")
-        st.markdown("**Install on your phone:** open this site in Chrome or Safari, then choose *Add to Home Screen*.")
-        st.caption("Your progress is saved only in this browser (no accounts, no server database). "
-                   "Do not enter personal health information.")
-        if st.button("Reset my saved progress", use_container_width=True):
+        if st.button("Reset everything", use_container_width=True):
             storage.reset()
-            st.toast("Progress cleared.", icon="🧹")
+            st.toast("All saved info cleared.", icon="🧹")
             st.rerun()

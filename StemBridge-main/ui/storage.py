@@ -2,15 +2,16 @@
 import copy
 import json
 import streamlit as st
+from ui import logic
 
 try:
     from streamlit_js_eval import streamlit_js_eval
 except ImportError:  # session-only fallback
     streamlit_js_eval = None
 
-LS_KEY = "stembridge_v1"
+LS_KEY = "stembridge_v2"
 DEFAULT = {
-    "type": "auto", "role": "patient",
+    "type": "auto", "role": "patient", "name": "", "goals": [], "onboarded": False,
     "visited": {"auto": [], "allo": []}, "done": {"auto": [], "allo": []},
     "checked": [], "quiz": [], "bookmarks": [], "seen_badges": [],
 }
@@ -23,12 +24,18 @@ def _merge(data):
     for k, v in data.items():
         if k in ("visited", "done") and isinstance(v, dict):
             for t in ("auto", "allo"):
-                base[k][t] = [int(i) for i in v.get(t, []) if isinstance(i, int)]
+                base[k][t] = [i for i in v.get(t, []) if isinstance(i, int) and not isinstance(i, bool)]
         elif k in ("checked", "quiz", "bookmarks", "seen_badges") and isinstance(v, list):
             base[k] = [x for x in v if isinstance(x, str)]
+        elif k == "goals" and isinstance(v, list):
+            base[k] = [x for x in v if x in logic.GOALS]
         elif k == "type" and v in ("auto", "allo"):
             base[k] = v
         elif k == "role" and v in ("patient", "caregiver"):
+            base[k] = v
+        elif k == "name":
+            base[k] = logic.clean_name(v)
+        elif k == "onboarded" and isinstance(v, bool):
             base[k] = v
     return base
 
@@ -70,3 +77,5 @@ def persist():
 def reset():
     st.session_state.sb = copy.deepcopy(DEFAULT)
     st.session_state.sb_saved_resources = set()
+    st.session_state.welcomed = False
+    st.session_state.onboard_step = 0

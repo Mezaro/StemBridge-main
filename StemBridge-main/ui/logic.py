@@ -1,19 +1,42 @@
-"""Pure logic (no Streamlit): terms, quiz, gamification, copy. Unit-testable."""
+"""Pure logic (no Streamlit): terms, quiz, badges, personalization. Unit-testable."""
 import random
 import re
 from datetime import date
 
 TERM_RE = re.compile(r"^\*\*(.+?):\*\*\s*(.+)$")
-LEVELS = [(0, "Seedling"), (40, "Explorer"), (110, "Navigator"), (200, "Bridge Builder")]
 
 BADGES = [
     ("first", "🌟", "First Step", "Open any journey phase"),
     ("explorer", "🧭", "Explorer", "Visit every phase of your journey"),
-    ("asker", "❓", "Question Keeper", "Tick 5 questions for your team"),
+    ("asker", "❓", "Question Keeper", "Tick 5 questions for your care team"),
     ("quiz", "🧠", "Word Wizard", "Answer 3 word quizzes correctly"),
     ("finisher", "🏁", "Journey Finisher", "Mark every phase as read"),
     ("saver", "⭐", "Resource Saver", "Save a resource"),
 ]
+BADGE_NAMES = {b[0]: f"{b[1]} {b[2]}" for b in BADGES}
+
+GOALS = {
+    "journey": "Understand the transplant journey",
+    "questions": "Prepare questions for the care team",
+    "support": "Find support and resources",
+    "money": "Learn about costs and financial help",
+    "caregiving": "Learn how to support someone",
+}
+GOAL_ACTIONS = {
+    "journey": ("🧭", "Explore my journey", "journey"),
+    "questions": ("❓", "Build my question list", "journey"),
+    "support": ("📚", "Find support", "resources"),
+    "money": ("💚", "Money questions", "more"),
+    "caregiving": ("🤝", "Caregiver guide", "more"),
+}
+DEFAULT_ACTIONS = ["journey", "support", "questions"]
+
+
+def clean_name(raw):
+    """Nickname only: letters, spaces, hyphen, apostrophe; max 20 chars."""
+    if not isinstance(raw, str):
+        return ""
+    return re.sub(r"[^A-Za-z\u00C0-\u024F '\-]", "", raw).strip()[:20]
 
 
 def parse_list(text):
@@ -57,21 +80,6 @@ def daily_term(stages, today=None):
     return terms[today.toordinal() % len(terms)]
 
 
-def sparks(sb):
-    v = sum(len(x) for x in sb["visited"].values())
-    d = sum(len(x) for x in sb["done"].values())
-    return 5 * v + 15 * d + 10 * len(sb["quiz"]) + 2 * len(sb["checked"]) + 5 * len(sb["bookmarks"])
-
-
-def level(points):
-    name, nxt = LEVELS[0][1], None
-    for i, (thr, nm) in enumerate(LEVELS):
-        if points >= thr:
-            name = nm
-            nxt = LEVELS[i + 1][0] if i + 1 < len(LEVELS) else None
-    return name, nxt
-
-
 def earned(sb, totals):
     ids = set()
     if any(sb["visited"].values()):
@@ -89,6 +97,12 @@ def earned(sb, totals):
     return ids
 
 
+def new_badges(sb, totals):
+    """Badges earned but not yet celebrated (ordered as in BADGES)."""
+    got = earned(sb, totals)
+    return [b[0] for b in BADGES if b[0] in got and b[0] not in sb["seen_badges"]]
+
+
 def percent(sb, key, total):
     return round(100 * len(set(sb["done"][key])) / total) if total else 0
 
@@ -101,15 +115,46 @@ def next_stage(sb, key, total):
     return total - 1
 
 
+# ---------- personalization ----------
+def first_name(sb):
+    return clean_name(sb.get("name", ""))
+
+
+def hello(sb):
+    n = first_name(sb)
+    return f"Hi, {n}!" if n else "Hi there!"
+
+
+def mascot_line(sb, pct=0):
+    n = first_name(sb)
+    who = "your loved one" if sb["role"] == "caregiver" else "you"
+    if pct >= 100:
+        return f"Amazing work{', ' + n if n else ''}! You have read every phase. Come back anytime to review."
+    if pct > 0:
+        return f"Welcome back{', ' + n if n else ''}! You are {pct}% through the guide. Ready for the next phase?"
+    return (f"I'm Bridgie{', ' + n if n else ''}! I'll walk through each step with {who}, nice and slowly. "
+            "There is no rush and no wrong place to start.")
+
+
+def suggested_actions(sb):
+    goals = [g for g in sb.get("goals", []) if g in GOAL_ACTIONS]
+    if sb["role"] == "caregiver" and "caregiving" not in goals:
+        goals.append("caregiving")
+    for g in DEFAULT_ACTIONS:
+        if len(goals) >= 3:
+            break
+        if g not in goals:
+            goals.append(g)
+    return [(g,) + GOAL_ACTIONS[g] for g in goals[:3]]
+
+
 COPY = {
     "patient": {
-        "hello": "Hi, I'm Bridgie! Let's learn about your transplant journey, one step at a time.",
-        "ask": "Tick the questions you want to bring to your care team.",
-        "tip": "Write down your answers during appointments, or ask someone to help you.",
+        "ask": "Tick the questions you would like to bring to your care team. Nothing here is saved anywhere except this browser.",
+        "tip": "It can help to write down answers during appointments, or ask someone to join you.",
     },
     "caregiver": {
-        "hello": "Hi, I'm Bridgie! Let's help you understand the journey so you can support your loved one.",
-        "ask": "Tick the questions you want to ask the care team on their behalf.",
-        "tip": "Take notes, keep this checklist handy, and confirm every instruction with the care team.",
+        "ask": "Tick the questions you would like to ask the care team on their behalf.",
+        "tip": "Taking notes and keeping this checklist handy can really help. Always confirm instructions with the care team.",
     },
 }

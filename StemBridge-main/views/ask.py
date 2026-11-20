@@ -1,6 +1,6 @@
 import streamlit as st
 from chat_knowledge import FAQ, NCI, ACS, answer
-from ui import theme, logic
+from ui import theme
 
 
 def _reply(question):
@@ -24,15 +24,15 @@ def _submit():
 def render():
     st.session_state.setdefault("chat", [])
     sb = st.session_state.sb
-    theme.hero("Ask Bridgie", "Reviewed, general answers about transplants.", "FAQ • NOT MEDICAL ADVICE")
-    theme.note("This is a fixed, keyword-based FAQ, not AI. Do not type names or medical details. "
-               "It cannot assess symptoms or advise on treatment.")
+    theme.hero("Ask Bridgie", "Tap a question or type your own. I'll share reviewed, general answers.", "FAQ • NOT MEDICAL ADVICE")
+    theme.note("I'm a fixed, keyword-based FAQ, not AI. Please don't type names or medical details. "
+               "I can't assess symptoms or advise on treatment.")
 
     titles = [f[0] for f in FAQ]
     if sb["role"] == "caregiver" and "What can caregivers do?" in titles:
         titles.remove("What can caregivers do?")
         titles.insert(0, "What can caregivers do?")
-    st.caption("Tap a question:")
+    st.caption("Popular questions:")
     st.session_state.chip = None
     st.pills("Popular questions", titles, key="chip", selection_mode="single",
              label_visibility="collapsed", on_change=_chip)
@@ -42,7 +42,7 @@ def render():
         st.form_submit_button("Send ➤", on_click=_submit, use_container_width=True, type="primary")
 
     if not st.session_state.chat:
-        theme.mascot("Pick a question above, or type your own. I will point you to trusted sources.")
+        theme.mascot("Not sure where to begin? Try one of the questions above. I'll point you to trusted sources too.")
     pairs = [st.session_state.chat[i:i + 2] for i in range(0, len(st.session_state.chat), 2)]
     for q, a in reversed(pairs):
         with st.chat_message("user"):
